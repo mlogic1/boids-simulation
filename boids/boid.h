@@ -15,10 +15,10 @@ class boid : public sf::Drawable, public sf::Transformable
 		void enableDebugFeatures(bool enable);
 
 	private:
-		sf::Vector2f align(std::vector<const boid*> neighbours);
-		// void cohesion(std::vector<const boid*> neighbours)
 		// void separation(std::vector<const boid*> neighbours);
-
+		sf::Vector2f align(std::vector<const boid*> neighbours);
+		sf::Vector2f cohesion(std::vector<const boid*> neighbours);
+	
 		void worldBounds();
 
 	private:

@@ -128,7 +128,7 @@ void boid::worldBounds()
 
 sf::Vector2f boid::align(std::vector<const boid*> neighbours)
 {
-	sf::Vector2f desired(.0f, .0f);	 // avg
+	sf::Vector2f desired(.0f, .0f);
 	for (const boid* neighbour : neighbours)
 	{
 		desired += neighbour->m_velocity;
@@ -136,11 +136,32 @@ sf::Vector2f boid::align(std::vector<const boid*> neighbours)
 
 	if (neighbours.size() > 0)
 	{
-		desired /= (float)neighbours.size();
+		desired /= (float)neighbours.size(); // avg
 		// steering.setMag(maxSpeed); // creates the ideal velocity the boid wants to reach.
 		// steering.sub(velocity);
 		// steering.limit(maxForce); // ensures the boid only nudges toward that ideal a little bit each frame.
-		setMag(desired, MAX_SPEED);
+		// setMag(desired, MAX_SPEED); 
+		desired -= m_velocity;
+		limit(desired, MAX_STEERING_FORCE);
+	}
+
+	return desired;
+}
+
+sf::Vector2f boid::cohesion(std::vector<const boid*> neighbours)
+{
+	sf::Vector2f desired(.0f, .0f);
+
+	for (const boid* neighbour : neighbours)
+	{
+		desired += neighbour->getPosition();
+	}
+
+	if (neighbours.size() > 0)
+	{
+		desired /= (float)neighbours.size();
+		desired -= getPosition();
+		// setMag(desired, MAX_SPEED);
 		desired -= m_velocity;
 		limit(desired, MAX_STEERING_FORCE);
 	}
@@ -151,14 +172,15 @@ sf::Vector2f boid::align(std::vector<const boid*> neighbours)
 // called each frame
 void boid::update(float dt, const std::vector<boid>& flock)
 {
+	worldBounds();
 	std::vector<const boid*> neighbours = detectNeighbours(*this, flock);
 
-	worldBounds();
-
 	sf::Vector2f alignment = align(neighbours);
-	m_acceleration = alignment;
+	sf::Vector2f coh = cohesion(neighbours);
+	m_acceleration = alignment + coh;
 
 	m_velocity += m_acceleration;
+	setMag(m_velocity, MAX_SPEED);
 	sf::Vector2f newPosition = getPosition() + m_velocity * dt;
 	setPosition(newPosition);
 
