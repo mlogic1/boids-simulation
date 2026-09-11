@@ -2,24 +2,38 @@
 
 #include <SFML/Graphics.hpp>
 
-class boid : public sf::CircleShape
+class boid : public sf::Drawable, public sf::Transformable
 {
 	public:
-		boid(
-			const float& coherence,
-			const float& separation,
-			const float& alignment
-		);
+		boid(const sf::Vector2f& worldSize);
 
 		bool operator==(const boid& other) const;
 		int getId() const;
-		void update();
+		void update(float dt, const std::vector<boid>& flock);
+		void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
+
+		void enableDebugFeatures(bool enable);
 
 	private:
+		sf::Vector2f align(std::vector<const boid*> neighbours);
+		// void cohesion(std::vector<const boid*> neighbours)
+		// void separation(std::vector<const boid*> neighbours);
+
+		void worldBounds();
+
+	private:
+		sf::CircleShape m_shape;
 		const int m_id;
-		const float& m_coherence;
-		const float& m_separation;
-		const float& m_alignment;
+		sf::Vector2f m_worldSize;
+
+		sf::Vector2f m_velocity;
+		sf::Vector2f m_acceleration;
+
+		// debug vars
+		bool m_debugFeatures{false};
+		sf::CircleShape m_perceptionCircle;
+
+		// end debug vars
 
 		static int __id_counter__;
 };
