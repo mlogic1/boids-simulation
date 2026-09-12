@@ -1,11 +1,14 @@
 #include "boid.h"
 #include <random>
+#include <iostream>
 
 int boid::__id_counter__ = 0;
 
 constexpr float PERCEPTION_RADIUS = 100.0f;
-constexpr float MAX_SPEED = 68.4f;
+constexpr float MAX_SPEED = 2.0f;
 constexpr float MAX_STEERING_FORCE = 0.1f;
+
+constexpr float SIMULATION_SPEED = 55.0f;
 
 static void setMag(sf::Vector2f& v, float targetMag)
 {
@@ -63,15 +66,7 @@ boid::boid(
 	std::uniform_real_distribution<> distX(0, 800);
 	std::uniform_real_distribution<> distY(0, 600);
 
-	std::uniform_real_distribution<float> accl(24.5f, 72.2f);
-
-	// setPosition({
-	// 	static_cast<float>(distX(gen)), 
-	// 	static_cast<float>(distY(gen))
-	// });
-
-	// m_velocity
-
+	std::uniform_real_distribution<float> accl(0.5f, 2.2f);
 	std::uniform_real_distribution<float> distF(0.0f, 2.0f * M_PI);
 	setPosition(sf::Vector2f{m_worldSize.x / 2.0f, m_worldSize.y / 2.0f});
 
@@ -82,10 +77,8 @@ boid::boid(
 	float randomAngle = distF(gen);
 	m_velocity = sf::Vector2f(std::cosf(randomAngle), std::sin(randomAngle));
 	m_velocity *= accl(gen);
-	// setRotation(sf::radians(randomAngle));
 
-
-	// debug - perception circle
+	// debug - perception circle - to be moved to debug class
 	m_perceptionCircle.setFillColor(sf::Color::Transparent);
 	m_perceptionCircle.setOutlineColor(sf::Color::Cyan);
 	m_perceptionCircle.setOutlineThickness(1.2f);
@@ -137,10 +130,7 @@ sf::Vector2f boid::align(std::vector<const boid*> neighbours)
 	if (neighbours.size() > 0)
 	{
 		desired /= (float)neighbours.size(); // avg
-		// steering.setMag(maxSpeed); // creates the ideal velocity the boid wants to reach.
-		// steering.sub(velocity);
-		// steering.limit(maxForce); // ensures the boid only nudges toward that ideal a little bit each frame.
-		// setMag(desired, MAX_SPEED); 
+		setMag(desired, MAX_SPEED); 
 		desired -= m_velocity;
 		limit(desired, MAX_STEERING_FORCE);
 	}
@@ -161,7 +151,37 @@ sf::Vector2f boid::cohesion(std::vector<const boid*> neighbours)
 	{
 		desired /= (float)neighbours.size();
 		desired -= getPosition();
-		// setMag(desired, MAX_SPEED);
+		setMag(desired, MAX_SPEED);
+		desired -= m_velocity;
+		limit(desired, MAX_STEERING_FORCE);
+	}
+
+	return desired;
+}
+
+sf::Vector2f boid::separation(std::vector<const boid*> neighbours)
+{
+	sf::Vector2f desired(.0f, .0f);
+	
+	const sf::Vector2f boidPos = getPosition();
+	for (const boid* neighbour : neighbours)
+	{
+		sf::Vector2f diff = boidPos - neighbour->getPosition();
+		float distSq = diff.x * diff.x + diff.y * diff.y;
+
+		if (distSq > 0.0001f) // avoid zero / near-zero
+		{
+			// inverse-square falloff
+			float d = std::max(distSq, 25.f); // avoid huge forces
+			diff /= d;
+			desired += diff;
+		}
+	}
+
+	if (neighbours.size() > 0)
+	{
+		// desired /= (float)neighbours.size();
+		setMag(desired, MAX_SPEED);
 		desired -= m_velocity;
 		limit(desired, MAX_STEERING_FORCE);
 	}
@@ -175,13 +195,16 @@ void boid::update(float dt, const std::vector<boid>& flock)
 	worldBounds();
 	std::vector<const boid*> neighbours = detectNeighbours(*this, flock);
 
+	// TODO: implement scaling
 	sf::Vector2f alignment = align(neighbours);
 	sf::Vector2f coh = cohesion(neighbours);
-	m_acceleration = alignment + coh;
+	sf::Vector2f sep = separation(neighbours);
+	m_acceleration = alignment + coh + sep;
 
-	m_velocity += m_acceleration;
-	setMag(m_velocity, MAX_SPEED);
-	sf::Vector2f newPosition = getPosition() + m_velocity * dt;
+	m_velocity += m_acceleration * (dt * SIMULATION_SPEED);
+	limit(m_velocity, MAX_SPEED);
+	
+	sf::Vector2f newPosition = getPosition() + m_velocity  * (dt * SIMULATION_SPEED);
 	setPosition(newPosition);
 
 	m_shape.setPosition(newPosition);
