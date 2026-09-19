@@ -7,7 +7,7 @@
 
 // some constants that define the simulation
 constexpr int NUM_BOIDS = 65;
-sf::Vector2u windowSize(800, 600); // also world size
+sf::Vector2u windowSize(1600, 1200); // also world size
 
 float dt = .0f;
 
